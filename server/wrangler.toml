@@ -8,6 +8,10 @@ command = "cargo install -q worker-build && worker-build --release"
 [observability]
 enabled = true
 
+[route]
+pattern = "keeper-api.acearchive.lgbt"
+custom_domain = true
+
 [[d1_databases]]
 binding = "DB"
 database_name = "acearchive-keeper"
