@@ -9,10 +9,10 @@ use axum::{
 };
 use serde::Deserialize;
 use tower_service::Service;
+use uuid::Uuid;
 use worker::{wasm_bindgen::JsValue, *};
 
 const CHECKSUM_BYTES: usize = 32;
-const KEEPER_ID_LEN: usize = 6;
 
 struct AppState {
     pub db: D1Database,
@@ -49,11 +49,10 @@ struct BackupRequest {
 }
 
 fn is_valid_keeper_id(keeper_id: &str) -> bool {
-    if keeper_id.len() != KEEPER_ID_LEN {
-        return false;
+    match Uuid::try_parse(keeper_id) {
+        Ok(uuid) => !uuid.is_nil(),
+        Err(_) => false,
     }
-
-    keeper_id.parse::<u32>().is_ok()
 }
 
 fn is_valid_checksum(checksum: &str) -> bool {
@@ -71,10 +70,15 @@ async fn post_backup(
     Json(body): Json<BackupRequest>,
 ) -> std::result::Result<NoContent, StatusCode> {
     if !is_valid_keeper_id(&body.keeper_id) {
+        console_error!("Keeper ID is not a valid UUID: {}", &body.keeper_id);
         return Err(StatusCode::BAD_REQUEST);
     }
 
     if !is_valid_checksum(&body.checksum) {
+        console_error!(
+            "Checksum had an unexpected length or encoding: {}",
+            &body.checksum
+        );
         return Err(StatusCode::BAD_REQUEST);
     }
 

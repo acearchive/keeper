@@ -16,3 +16,4 @@ axum = { version = "0.8", default-features = false, features = [
 ] }
 tower-service = "0.3.3"
 serde = { version = "1.0.228", features = ["derive"] }
+uuid = { version = "1.18.1", features = ["v4", "js"] }
