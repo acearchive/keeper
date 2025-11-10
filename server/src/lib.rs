@@ -11,6 +11,8 @@ use serde::Deserialize;
 use tower_service::Service;
 use worker::{wasm_bindgen::JsValue, *};
 
+const CHECKSUM_BYTES: usize = 32;
+
 struct AppState {
     pub db: D1Database,
 }
@@ -45,12 +47,24 @@ struct BackupRequest {
     email: Option<String>,
 }
 
+fn is_valid_checksum(checksum: &str) -> bool {
+    if checksum.len() != CHECKSUM_BYTES * 2 {
+        return false;
+    }
+
+    checksum.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 #[axum::debug_handler]
 #[worker::send]
 async fn post_backup(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BackupRequest>,
 ) -> std::result::Result<NoContent, StatusCode> {
+    if !is_valid_checksum(&body.checksum) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     state
         .db
         .prepare(
@@ -60,8 +74,8 @@ async fn post_backup(
             "#,
         )
         .bind(&[
-            body.keeper_id.into(),
-            body.checksum.into(),
+            body.keeper_id.clone().into(),
+            body.checksum.to_ascii_lowercase().into(),
             // An f64 can only losslessly represent integers up to 2^53. In context, that's 8 PiB
             // (pebibytes). We don't need to worry about it.
             (body.size as f64).into(),
@@ -78,6 +92,14 @@ async fn post_backup(
         .run()
         .await
         .or(Err(StatusCode::INTERNAL_SERVER_ERROR))?;
+
+    console_log!(
+        "Inserted backup record.\nKeeper ID: {}\nChecksum: {}\nSize: {}\nContact: {}",
+        body.keeper_id,
+        body.checksum,
+        body.size,
+        body.email.as_deref().unwrap_or_default(),
+    );
 
     Ok(NoContent)
 }
