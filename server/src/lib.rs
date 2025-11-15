@@ -123,11 +123,12 @@ async fn post_backup(
         .or(Err(StatusCode::INTERNAL_SERVER_ERROR))?;
 
     console_log!(
-        "Inserted backup record.\nKeeper ID: {}\nChecksum: {}\nSize: {}\nContact: {}",
+        "Inserted backup record.\nKeeper ID: {}\nChecksum: {}\nSize: {}\nContact: {}\nFormat Version: {}",
         body.keeper_id,
         body.checksum,
         body.size,
         body.email.as_deref().unwrap_or_default(),
+        body.format_version,
     );
 
     Ok(NoContent)
