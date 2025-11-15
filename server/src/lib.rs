@@ -9,9 +9,9 @@ use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::NoContent,
-    routing::post,
+    routing::{get, post},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tower_service::Service;
 use worker::{wasm_bindgen::JsValue, *};
 
@@ -30,6 +30,7 @@ impl fmt::Debug for AppState {
 fn router(state: AppState) -> Router {
     Router::new()
         .route("/backups", post(post_backup))
+        .route("/checksum", get(get_checksum))
         .with_state(Arc::new(state))
 }
 
@@ -115,4 +116,31 @@ async fn post_backup(
     );
 
     Ok(NoContent)
+}
+
+#[derive(Debug, Serialize)]
+struct ChecksumResponse {
+    format_version: u32,
+    checksum: String,
+}
+
+#[axum::debug_handler]
+#[worker::send]
+async fn get_checksum() -> std::result::Result<Json<ChecksumResponse>, StatusCode> {
+    let upstream_artifacts = api::fetch_all_artifacts().await.map_err(|e| {
+        console_error!("Error fetching artifacts from upstream: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let checksum = checksum::compute_backup_checksum(&upstream_artifacts).map_err(|e| {
+        console_error!("Error computing backup checksum: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let response = ChecksumResponse {
+        format_version: validate::CURRENT_FORMAT_VERSION,
+        checksum,
+    };
+
+    Ok(Json(response))
 }

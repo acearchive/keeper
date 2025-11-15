@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-const CURRENT_FORMAT_VERSION: u32 = 1;
+pub const CURRENT_FORMAT_VERSION: u32 = 1;
 const CHECKSUM_BYTES: usize = 32;
 
 pub fn is_valid_format_version(format_version: u32) -> bool {
